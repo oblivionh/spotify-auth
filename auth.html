@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Spotify Auth</title>
+    <script>
+    // 获取URL中的授权码
+    const code = new URLSearchParams(window.location.search).get('code');
+    
+    // 发送消息给父窗口
+    if (window.opener) {
+        window.opener.postMessage({
+            type: 'SPOTIFY_CODE',
+            code: code
+        }, '*');
+        window.close();
+    }
+    </script>
+</head>
+<body>
+    <h1>授权完成，可以关闭本页面</h1>
+</body>
+</html>
