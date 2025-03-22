@@ -33,65 +33,129 @@
         <h2>授权处理中...</h2>
     </div>
 
-    <script>
-    function sendMessageAndClose() {
-        try {
-            // 动态获取父窗口域名
-            const validOrigins = [
-                'https://live.bilibili.com',
-                'https://live.blibill.com'
-            ];
+<script>
+let debugMode = window.location.hash.includes('debug');
 
-            const targetOrigin = validOrigins.find(origin => {
-                try {
-                    return window.opener.location.href.startsWith(origin);
-                } catch (e) {
-                    return false;
-                }
-            });
+function log(message) {
+    if (debugMode) {
+        document.getElementById('debug-console').innerHTML += `${message}<br>`;
+    }
+    console.log('[Spotify Auth]', message);
+}
 
-            if (!targetOrigin) {
-                throw new Error('未找到合法父窗口');
+function sendMessageAndClose() {
+    try {
+        // 动态调试输出
+        log('开始执行授权回调流程');
+        log(`父窗口存在: ${!!window.opener}`);
+        log(`当前URL参数: ${window.location.search}`);
+
+        // 动态获取父窗口信息
+        const validOrigins = [
+            'https://live.bilibili.com',
+            'https://live.blibill.com'
+        ];
+
+        log('尝试匹配合法域名...');
+        const targetOrigin = validOrigins.find(origin => {
+            try {
+                const openerOrigin = new URL(window.opener.location.href).origin;
+                log(`检测到父窗口源: ${openerOrigin}`);
+                return openerOrigin === origin;
+            } catch (e) {
+                log(`安全策略阻止源检测: ${e.message}`);
+                return false;
             }
+        });
 
-            const params = new URLSearchParams(window.location.search);
-            const code = params.get('code');
-            const error = params.get('error');
+        if (!targetOrigin) {
+            throw new Error(`未找到匹配的合法域名，当前父窗口源：${window.opener?.location?.href || '无法获取'}`);
+        }
 
-            if (code) {
-                window.opener.postMessage({
-                    type: 'spotify_code',
-                    code: code,
-                    _signature: 'bilibili_spotify_' + Date.now()
-                }, targetOrigin);
-            } else if (error) {
-                window.opener.postMessage({
-                    type: 'auth_error',
-                    error: error,
-                    _signature: 'bilibili_spotify_' + Date.now()
-                }, targetOrigin);
-            }
+        const params = new URLSearchParams(window.location.search);
+        const code = params.get('code');
+        const error = params.get('error');
 
-            setTimeout(() => {
-                window.close();
-            }, 500);
-            
-        } catch (e) {
-            document.getElementById('main-content').innerHTML = `
-                <h3 style="color: #ff4444;">发生错误：${e.message}</h3>
-                <p>可能原因：</p>
-                <ul style="text-align: left;">
-                    <li>父窗口已被关闭</li>
-                    <li>浏览器阻止了弹出窗口</li>
-                    <li>域名配置不匹配（当前检测到：${window.opener?.location?.href || '无'}）</li>
-                </ul>
-                <button onclick="window.close()">手动关闭窗口</button>
+        // 消息发送逻辑
+        if (code) {
+            log(`准备发送授权码: ${code}`);
+            window.opener.postMessage({
+                type: 'spotify_code',
+                code: code,
+                _signature: 'bilibili_spotify_' + Date.now()
+            }, targetOrigin);
+            log('授权码已发送');
+        } else if (error) {
+            log(`准备发送错误: ${error}`);
+            window.opener.postMessage({
+                type: 'auth_error',
+                error: error,
+                _signature: 'bilibili_spotify_' + Date.now()
+            }, targetOrigin);
+            log('错误信息已发送');
+        }
+
+        // 分阶段关闭机制
+        log('启动关闭倒计时');
+        setTimeout(() => {
+            log('尝试自动关闭窗口');
+            window.close();
+            log('关闭指令已发送');
+        }, 800);
+
+        // 手动关闭备选方案
+        if (!debugMode) {
+            document.getElementById('main-content').innerHTML += `
+                <p>如果窗口未自动关闭，请
+                    <button onclick="window.close()" style="font-size:14px;">
+                        点击这里手动关闭
+                    </button>
+                </p>
             `;
         }
-    }
 
-    // 延迟执行以适应浏览器安全策略
-    setTimeout(sendMessageAndClose, 300);
-    </script>
+    } catch (e) {
+        log(`发生严重错误: ${e.message}`);
+        document.getElementById('main-content').innerHTML = `
+            <h3 style="color: #ff4444;">错误详情：</h3>
+            <div style="text-align: left;">
+                <p>${e.message}</p>
+                <p>技术参数：</p>
+                <ul>
+                    <li>父窗口状态：${window.opener ? '存在' : '不存在'}</li>
+                    <li>当前源：${window.location.origin}</li>
+                    <li>目标源：${targetOrigin || '未确定'}</li>
+                </ul>
+                <button onclick="window.close()" style="margin-top:15px;">
+                    强制关闭窗口
+                </button>
+            </div>
+        `;
+    }
+}
+
+// 启动调试面板
+if (debugMode) {
+    document.getElementById('main-content').innerHTML += `
+        <div id="debug-console" style="
+            background: #000;
+            color: #0f0;
+            padding: 10px;
+            margin-top: 20px;
+            text-align: left;
+            font-family: monospace;
+            max-height: 300px;
+            overflow: auto;">
+            <h4>调试控制台</h4>
+        </div>
+    `;
+}
+
+// 延迟启动以兼容浏览器安全策略
+setTimeout(() => {
+    log('启动授权流程');
+    sendMessageAndClose();
+}, 300);
+</script>
 </body>
 </html>
