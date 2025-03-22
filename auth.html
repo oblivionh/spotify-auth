@@ -1,48 +1,97 @@
-<script>
-function getCode() {
-    // 添加安全验证
-    if (!window.opener || window.opener.closed) {
-        document.body.innerHTML = '<h1 style="color:red">错误：未找到父窗口</h1>';
-        return;
-    }
-
-    const params = new URLSearchParams(window.location.search);
-    const code = params.get('code');
-    const error = params.get('error');
-
-    // 添加来源验证
-    const targetOrigin = 'https://live.bilibili.com';
-    try {
-        if (code) {
-            window.opener.postMessage({
-                type: 'spotify_code',
-                code: code,
-                _signature: 'bilibili_spotify_' + Date.now()
-            }, targetOrigin);
-        } else if (error) {
-            window.opener.postMessage({
-                type: 'auth_error',
-                error: error,
-                _signature: 'bilibili_spotify_' + Date.now()
-            }, targetOrigin);
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Spotify Auth Callback</title>
+    <style>
+        body {
+            background: #f0f2f5;
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 50px;
         }
-    } catch (e) {
-        document.body.innerHTML = `<h1>通信失败：${e.message}</h1>`;
-        return;
+        .error-box {
+            background: #fff;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        button {
+            background: #1DB954;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="error-box" id="main-content">
+        <h2>授权处理中...</h2>
+    </div>
+
+    <script>
+    function sendMessageAndClose() {
+        try {
+            // 动态获取父窗口域名
+            const validOrigins = [
+                'https://live.bilibili.com',
+                'https://live.blibill.com'
+            ];
+
+            const targetOrigin = validOrigins.find(origin => {
+                try {
+                    return window.opener.location.href.startsWith(origin);
+                } catch (e) {
+                    return false;
+                }
+            });
+
+            if (!targetOrigin) {
+                throw new Error('未找到合法父窗口');
+            }
+
+            const params = new URLSearchParams(window.location.search);
+            const code = params.get('code');
+            const error = params.get('error');
+
+            if (code) {
+                window.opener.postMessage({
+                    type: 'spotify_code',
+                    code: code,
+                    _signature: 'bilibili_spotify_' + Date.now()
+                }, targetOrigin);
+            } else if (error) {
+                window.opener.postMessage({
+                    type: 'auth_error',
+                    error: error,
+                    _signature: 'bilibili_spotify_' + Date.now()
+                }, targetOrigin);
+            }
+
+            setTimeout(() => {
+                window.close();
+            }, 500);
+            
+        } catch (e) {
+            document.getElementById('main-content').innerHTML = `
+                <h3 style="color: #ff4444;">发生错误：${e.message}</h3>
+                <p>可能原因：</p>
+                <ul style="text-align: left;">
+                    <li>父窗口已被关闭</li>
+                    <li>浏览器阻止了弹出窗口</li>
+                    <li>域名配置不匹配（当前检测到：${window.opener?.location?.href || '无'}）</li>
+                </ul>
+                <button onclick="window.close()">手动关闭窗口</button>
+            `;
+        }
     }
 
-    // 添加关闭保障机制
-    setTimeout(() => {
-        window.close();
-    }, 500);
-    
-    // 添加关闭按钮作为备选方案
-    document.body.innerHTML += `
-        <button onclick="window.close()" 
-                style="position:fixed;top:10px;right:10px;padding:5px;">
-            手动关闭
-        </button>
-    `;
-}
-window.addEventListener('load', getCode);
-</script>
+    // 延迟执行以适应浏览器安全策略
+    setTimeout(sendMessageAndClose, 300);
+    </script>
+</body>
+</html>
