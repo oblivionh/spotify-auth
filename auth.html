@@ -1,38 +1,31 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Spotify Auth Callback</title>
-    <style>
-        /* 保持原有样式不变 */
-    </style>
-</head>
-<body>
-    <div class="status-box">
-        <h2 id="status-title">🔄 授权处理中...</h2>
-        <div id="status-detail"></div>
-        <button onclick="window.close()">手动关闭窗口</button>
-    </div>
-
+    <title>Spotify Auth</title>
     <script>
     const validOrigins = [
         'https://live.bilibili.com',
-        'https://www.bilibili.com',
         'https://oblivionh.github.io'
     ];
 
-    function sendAuthMessage() {
-        try {
-            const openerOrigin = new URL(window.opener.location.href).origin;
-            if (!validOrigins.includes(openerOrigin)) {
-                throw new Error(`非法父窗口源: ${openerOrigin}`);
-            }
-
-            // ...保持其他代码不变...
-            window.opener.postMessage(message, openerOrigin); // 动态使用实际源
-        } catch (error) {
-            // ...错误处理逻辑...
+    window.addEventListener('load', () => {
+        const params = new URLSearchParams(location.search);
+        const openerOrigin = window.opener?.location.origin;
+        
+        if (validOrigins.includes(openerOrigin)) {
+            window.opener.postMessage({
+                type: 'spotify_code',
+                code: params.get('code'),
+                _signature: 'bili_' + Date.now()
+            }, openerOrigin);
+            setTimeout(() => window.close(), 800);
+        } else {
+            document.body.innerHTML = `<h1 style="color:red">安全错误：非法来源</h1>`;
         }
-    }
+    });
     </script>
+</head>
+<body>
+    <h2>授权完成，正在返回...</h2>
 </body>
 </html>
