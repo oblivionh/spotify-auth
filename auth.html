@@ -1,32 +1,48 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Spotify Auth Callback</title>
-</head>
-<body>
-    <script>
-    function getCode() {
-        const params = new URLSearchParams(window.location.search);
-        const code = params.get('code');
-        const error = params.get('error');
-        
+<script>
+function getCode() {
+    // 添加安全验证
+    if (!window.opener || window.opener.closed) {
+        document.body.innerHTML = '<h1 style="color:red">错误：未找到父窗口</h1>';
+        return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    const error = params.get('error');
+
+    // 添加来源验证
+    const targetOrigin = 'https://live.bilibili.com';
+    try {
         if (code) {
             window.opener.postMessage({
                 type: 'spotify_code',
-                code: code
-            }, 'https://live.bilibili.com'); // 严格匹配直播域名
-            
-            window.close();
+                code: code,
+                _signature: 'bilibili_spotify_' + Date.now()
+            }, targetOrigin);
         } else if (error) {
             window.opener.postMessage({
                 type: 'auth_error',
-                error: error
-            }, 'https://live.bilibili.com');
-            
-            window.close();
+                error: error,
+                _signature: 'bilibili_spotify_' + Date.now()
+            }, targetOrigin);
         }
+    } catch (e) {
+        document.body.innerHTML = `<h1>通信失败：${e.message}</h1>`;
+        return;
     }
-    getCode();
-    </script>
-</body>
-</html>
+
+    // 添加关闭保障机制
+    setTimeout(() => {
+        window.close();
+    }, 500);
+    
+    // 添加关闭按钮作为备选方案
+    document.body.innerHTML += `
+        <button onclick="window.close()" 
+                style="position:fixed;top:10px;right:10px;padding:5px;">
+            手动关闭
+        </button>
+    `;
+}
+window.addEventListener('load', getCode);
+</script>
