@@ -1,22 +1,32 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Spotify Auth</title>
-    <script>
-    // 获取URL中的授权码
-    const code = new URLSearchParams(window.location.search).get('code');
-    
-    // 发送消息给父窗口
-    if (window.opener) {
-        window.opener.postMessage({
-            type: 'SPOTIFY_CODE',
-            code: code
-        }, '*');
-        window.close();
-    }
-    </script>
+    <title>Spotify Auth Callback</title>
 </head>
 <body>
-    <h1>授权完成，可以关闭本页面</h1>
+    <script>
+    function getCode() {
+        const params = new URLSearchParams(window.location.search);
+        const code = params.get('code');
+        const error = params.get('error');
+        
+        if (code) {
+            window.opener.postMessage({
+                type: 'spotify_code',
+                code: code
+            }, 'https://live.bilibili.com'); // 严格匹配直播域名
+            
+            window.close();
+        } else if (error) {
+            window.opener.postMessage({
+                type: 'auth_error',
+                error: error
+            }, 'https://live.bilibili.com');
+            
+            window.close();
+        }
+    }
+    getCode();
+    </script>
 </body>
 </html>
