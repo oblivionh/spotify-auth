@@ -2,30 +2,86 @@
 <html>
 <head>
     <title>Spotify Auth</title>
-    <script>
-    const validOrigins = [
-        'https://live.bilibili.com',
-        'https://oblivionh.github.io'
-    ];
-
-    window.addEventListener('load', () => {
-        const params = new URLSearchParams(location.search);
-        const openerOrigin = window.opener?.location.origin;
-        
-        if (validOrigins.includes(openerOrigin)) {
-            window.opener.postMessage({
-                type: 'spotify_code',
-                code: params.get('code'),
-                _signature: 'bili_' + Date.now()
-            }, openerOrigin);
-            setTimeout(() => window.close(), 800);
-        } else {
-            document.body.innerHTML = `<h1 style="color:red">安全错误：非法来源</h1>`;
+    <style>
+        body {
+            background: #1a1a1a;
+            color: white;
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 50px;
         }
-    });
-    </script>
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #1DB954;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
 </head>
 <body>
-    <h2>授权完成，正在返回...</h2>
+    <h2>授权处理中...</h2>
+    <div class="loader"></div>
+    <p>如果页面没有自动关闭，请<a href="javascript:window.close()" style="color:#1DB954;">点击此处</a></p>
+
+    <script>
+    (function() {
+        const VALID_ORIGINS = [
+            'https://live.bilibili.com',
+            'https://oblivionh.github.io'
+        ];
+
+        function verifyAndSend() {
+            try {
+                // 安全验证
+                if (!window.opener || window.opener.closed) {
+                    throw new Error('父窗口不存在');
+                }
+
+                const openerOrigin = new URL(window.opener.location.href).origin;
+                if (!VALID_ORIGINS.includes(openerOrigin)) {
+                    throw new Error(`非法源: ${openerOrigin}`);
+                }
+
+                // 获取参数
+                const params = new URLSearchParams(location.search);
+                const code = params.get('code');
+                const error = params.get('error');
+
+                // 发送消息
+                window.opener.postMessage({
+                    type: code ? 'spotify_code' : 'auth_error',
+                    code: code,
+                    error: error,
+                    _signature: `bili_${Date.now()}`
+                }, openerOrigin);
+
+                // 自动关闭
+                setTimeout(() => {
+                    window.close();
+                }, 800);
+
+            } catch (error) {
+                document.body.innerHTML = `
+                    <h2 style="color:#ff4444;">授权错误</h2>
+                    <p>${error.message}</p>
+                    <button onclick="window.close()" 
+                            style="padding:10px 20px;background:#1DB954;border:none;color:white;border-radius:5px;">
+                        关闭窗口
+                    </button>
+                `;
+            }
+        }
+
+        // 延迟执行确保安全
+        setTimeout(verifyAndSend, 300);
+    })();
+    </script>
 </body>
 </html>
